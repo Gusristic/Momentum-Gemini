@@ -21,6 +21,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { FundISIN, FundCategory } from '../types';
+import { lookupFundByIsinOrQuery } from '../utils/fundLookupClient';
 
 interface EditFundModalProps {
   fund: FundISIN | null;
@@ -110,13 +111,7 @@ export const EditFundModal: React.FC<EditFundModalProps> = ({
     });
 
     try {
-      const res = await fetch(`/api/fund-lookup?query=${encodeURIComponent(isinClean)}`);
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `No se pudo encontrar datos de mercado para ${isinClean}`);
-      }
-
-      const data = await res.json();
+      const data = await lookupFundByIsinOrQuery(isinClean);
       lastFetchedIsinRef.current = isinClean;
 
       const fundName = data.name || (formData.name && !formData.name.includes('(Vacío)') ? formData.name : `Fondo ISIN ${isinClean}`);

@@ -49,6 +49,7 @@ import { TelegramAlertsModal } from './components/TelegramAlertsModal';
 import { BackupModal } from './components/BackupModal';
 import { ConfirmModal, ConfirmDialogState } from './components/ConfirmModal';
 import { getLocalTelegramConfig, saveLocalTelegramConfig, sendTelegramSignal, syncBackendTelegramConfig } from './utils/telegramClient';
+import { lookupFundByIsinOrQuery } from './utils/fundLookupClient';
 import { TelegramConfig } from './types';
 
 export default function App() {
@@ -341,49 +342,45 @@ export default function App() {
   const handleRefreshMarketData = async () => {
     setIsRefreshing(true);
     try {
-      // Query official live feeds from server for funds with real ISINs
+      // Query official feeds with universal static/backend support
       const updated = await Promise.all(
         funds.map(async (fund) => {
-          // If fund is empty or blank, do not query market feeds and leave completely untouched
           if (!fund.isin || !fund.isin.trim() || fund.isBlank) {
             return fund;
           }
           try {
-            const res = await fetch(`/api/fund-lookup?query=${encodeURIComponent(fund.isin)}`);
-            if (res.ok) {
-              const data = await res.json();
-              return {
-                ...fund,
-                name: data.name || fund.name,
-                currentNAV: data.currentNAV || fund.currentNAV,
-                currency: data.currency || fund.currency,
-                category: data.category || fund.category,
-                categoryLabel: data.categoryLabel || fund.categoryLabel,
-                isSafeHaven: data.isSafeHaven !== undefined ? data.isSafeHaven : fund.isSafeHaven,
-                return1M: data.return1M !== undefined ? data.return1M : fund.return1M,
-                return3M: data.return3M !== undefined ? data.return3M : fund.return3M,
-                return6M: data.return6M !== undefined ? data.return6M : fund.return6M,
-                return12M: data.return12M !== undefined ? data.return12M : fund.return12M,
-                morningstarReturn12M: data.morningstarReturn12M !== undefined ? data.morningstarReturn12M : fund.morningstarReturn12M,
-                ftReturn12M: data.ftReturn12M !== undefined ? data.ftReturn12M : fund.ftReturn12M,
-                investingReturn12M: data.investingReturn12M !== undefined ? data.investingReturn12M : fund.investingReturn12M,
-                return12Minus1M: data.return12Minus1M !== undefined ? data.return12Minus1M : fund.return12Minus1M,
-                return3YAnnualized: data.return3YAnnualized !== undefined ? data.return3YAnnualized : fund.return3YAnnualized,
-                volatility1Y: data.volatility1Y !== undefined ? data.volatility1Y : fund.volatility1Y,
-                sharpeRatio: data.sharpeRatio !== undefined ? data.sharpeRatio : fund.sharpeRatio,
-                jensenAlpha: data.jensenAlpha !== undefined ? data.jensenAlpha : fund.jensenAlpha,
-                sortinoRatio: data.sortinoRatio !== undefined ? data.sortinoRatio : fund.sortinoRatio,
-                beta: data.beta !== undefined ? data.beta : fund.beta,
-                maxDrawdown: data.maxDrawdown !== undefined ? data.maxDrawdown : fund.maxDrawdown,
-                history: data.history && data.history.length > 0 ? data.history : fund.history,
-                morningstarUrl: data.morningstarUrl || fund.morningstarUrl,
-                ftUrl: data.ftUrl || fund.ftUrl,
-                investingUrl: data.investingUrl || fund.investingUrl,
-                lastUpdated: data.lastUpdated || new Date().toISOString().substring(0, 10),
-              };
-            }
+            const data = await lookupFundByIsinOrQuery(fund.isin);
+            return {
+              ...fund,
+              name: data.name || fund.name,
+              currentNAV: data.currentNAV || fund.currentNAV,
+              currency: data.currency || fund.currency,
+              category: data.category || fund.category,
+              categoryLabel: data.categoryLabel || fund.categoryLabel,
+              isSafeHaven: data.isSafeHaven !== undefined ? data.isSafeHaven : fund.isSafeHaven,
+              return1M: data.return1M !== undefined ? data.return1M : fund.return1M,
+              return3M: data.return3M !== undefined ? data.return3M : fund.return3M,
+              return6M: data.return6M !== undefined ? data.return6M : fund.return6M,
+              return12M: data.return12M !== undefined ? data.return12M : fund.return12M,
+              morningstarReturn12M: data.morningstarReturn12M !== undefined ? data.morningstarReturn12M : fund.morningstarReturn12M,
+              ftReturn12M: data.ftReturn12M !== undefined ? data.ftReturn12M : fund.ftReturn12M,
+              investingReturn12M: data.investingReturn12M !== undefined ? data.investingReturn12M : fund.investingReturn12M,
+              return12Minus1M: data.return12Minus1M !== undefined ? data.return12Minus1M : fund.return12Minus1M,
+              return3YAnnualized: data.return3YAnnualized !== undefined ? data.return3YAnnualized : fund.return3YAnnualized,
+              volatility1Y: data.volatility1Y !== undefined ? data.volatility1Y : fund.volatility1Y,
+              sharpeRatio: data.sharpeRatio !== undefined ? data.sharpeRatio : fund.sharpeRatio,
+              jensenAlpha: data.jensenAlpha !== undefined ? data.jensenAlpha : fund.jensenAlpha,
+              sortinoRatio: data.sortinoRatio !== undefined ? data.sortinoRatio : fund.sortinoRatio,
+              beta: data.beta !== undefined ? data.beta : fund.beta,
+              maxDrawdown: data.maxDrawdown !== undefined ? data.maxDrawdown : fund.maxDrawdown,
+              history: data.history && data.history.length > 0 ? data.history : fund.history,
+              morningstarUrl: data.morningstarUrl || fund.morningstarUrl,
+              ftUrl: data.ftUrl || fund.ftUrl,
+              investingUrl: data.investingUrl || fund.investingUrl,
+              lastUpdated: data.lastUpdated || new Date().toISOString().substring(0, 10),
+            };
           } catch {
-            // Keep existing on network issue
+            // Keep existing on issue
           }
           return fund;
         })

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { FundISIN, MomentumScoreResult } from '../types';
 import { MomentumMode } from '../utils/momentumEngine';
+import { lookupFundByIsinOrQuery } from '../utils/fundLookupClient';
 
 interface IsinManagerProps {
   funds: FundISIN[];
@@ -87,13 +88,7 @@ export const IsinManager: React.FC<IsinManagerProps> = ({
     setQuickStatus({ type: null, message: '' });
 
     try {
-      const res = await fetch(`/api/fund-lookup?query=${encodeURIComponent(isinClean)}`);
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `No se pudo encontrar datos para ${isinClean}`);
-      }
-
-      const data = await res.json();
+      const data = await lookupFundByIsinOrQuery(isinClean);
       const targetSlot = funds.find(f => f.slotNumber === quickSlot) || funds[0];
 
       const updatedFund: FundISIN = {
