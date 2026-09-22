@@ -336,8 +336,8 @@ export function getLocalFunds(): FundISIN[] {
           const auditedData = KNOWN_AUDITED_METRICS[cleanIsin];
 
           return {
-            ...f,
             ...(auditedData ? auditedData : {}),
+            ...f,
             id: uniqueId,
             slotNumber: slotNum,
             isin: cleanIsin,
@@ -488,7 +488,7 @@ export async function fetchFundsFromSupabase(settings?: SupabaseSettings): Promi
       const cleanIsin = isDuplicate ? '' : rawIsin;
       const isBlank = cleanIsin.length === 0;
 
-      // Check audited metrics
+      // Audited fallback if database row has nulls
       const audited = KNOWN_AUDITED_METRICS[cleanIsin];
 
       return {
@@ -499,34 +499,34 @@ export async function fetchFundsFromSupabase(settings?: SupabaseSettings): Promi
           ? (row.name?.includes('Slot #') ? row.name : `Slot #${slotNum} (Vacío)`)
           : (row.name && !row.name.includes('(Vacío)') ? row.name : (audited?.name || `Fondo ISIN ${cleanIsin}`)),
         ticker: row.ticker || '',
-        category: audited?.category || row.category || 'WORLD_EQUITY',
-        categoryLabel: audited?.categoryLabel || row.category_label || (isBlank ? 'Sin Asignar (En Blanco)' : 'Renta Variable'),
-        isSafeHaven: audited?.isSafeHaven !== undefined ? audited.isSafeHaven : Boolean(row.is_safe_haven),
+        category: row.category || audited?.category || 'WORLD_EQUITY',
+        categoryLabel: row.category_label || audited?.categoryLabel || (isBlank ? 'Sin Asignar (En Blanco)' : 'Renta Variable'),
+        isSafeHaven: row.is_safe_haven !== null && row.is_safe_haven !== undefined ? Boolean(row.is_safe_haven) : (audited?.isSafeHaven !== undefined ? audited.isSafeHaven : false),
         isBlank,
         isDisabled: false,
-        currentNAV: Number(audited?.currentNAV || row.current_nav || 100),
+        currentNAV: Number(row.current_nav !== null && row.current_nav !== undefined ? row.current_nav : (audited?.currentNAV ?? 100)),
         currency: 'EUR',
-        morningstarUrl: audited?.morningstarUrl || (cleanIsin ? `https://www.morningstar.es/es/funds/snapshot/snapshot.aspx?q=${cleanIsin}` : ''),
-        ftUrl: audited?.ftUrl || (cleanIsin ? `https://markets.ft.com/data/funds/tearsheet/summary?s=${cleanIsin}:EUR` : ''),
-        investingUrl: audited?.investingUrl || (cleanIsin ? `https://es.investing.com/search/?q=${cleanIsin}` : ''),
+        morningstarUrl: cleanIsin ? (audited?.morningstarUrl || `https://www.morningstar.es/es/funds/snapshot/snapshot.aspx?q=${cleanIsin}`) : '',
+        ftUrl: cleanIsin ? (audited?.ftUrl || `https://markets.ft.com/data/funds/tearsheet/summary?s=${cleanIsin}:EUR`) : '',
+        investingUrl: cleanIsin ? (audited?.investingUrl || `https://es.investing.com/search/?q=${cleanIsin}`) : '',
         morningstarReturn12M: audited?.morningstarReturn12M,
         ftReturn12M: audited?.ftReturn12M,
         investingReturn12M: audited?.investingReturn12M,
         sharesHeld: Number(row.shares_held || 0),
         purchasePriceAvg: Number(row.purchase_price_avg || 0),
-        lastUpdated: audited?.lastUpdated || row.last_updated?.substring(0, 10) || new Date().toISOString().substring(0, 10),
-        return1M: Number(audited?.return1M !== undefined ? audited.return1M : (row.return_1m || 0)),
-        return3M: Number(audited?.return3M !== undefined ? audited.return3M : (row.return_3m || 0)),
-        return6M: Number(audited?.return6M !== undefined ? audited.return6M : (row.return_6m || 0)),
-        return12M: Number(audited?.return12M !== undefined ? audited.return12M : (row.return_12m || 0)),
-        return12Minus1M: Number(audited?.return12Minus1M !== undefined ? audited.return12Minus1M : (row.return_12_minus_1m || row.return_12m || 0)),
+        lastUpdated: row.last_updated?.substring(0, 10) || audited?.lastUpdated || new Date().toISOString().substring(0, 10),
+        return1M: Number(row.return_1m !== null && row.return_1m !== undefined ? row.return_1m : (audited?.return1M || 0)),
+        return3M: Number(row.return_3m !== null && row.return_3m !== undefined ? row.return_3m : (audited?.return3M || 0)),
+        return6M: Number(row.return_6m !== null && row.return_6m !== undefined ? row.return_6m : (audited?.return6M || 0)),
+        return12M: Number(row.return_12m !== null && row.return_12m !== undefined ? row.return_12m : (audited?.return12M || 0)),
+        return12Minus1M: Number(row.return_12_minus_1m !== null && row.return_12_minus_1m !== undefined ? row.return_12_minus_1m : (audited?.return12Minus1M ?? (row.return_12m || 0))),
         return3YAnnualized: Number(audited?.return3YAnnualized !== undefined ? audited.return3YAnnualized : (row.return_12m ? (row.return_12m * 0.7).toFixed(1) : 0)),
-        volatility1Y: Number(audited?.volatility1Y !== undefined ? audited.volatility1Y : (row.volatility_1y || 0)),
-        sharpeRatio: Number(audited?.sharpeRatio !== undefined ? audited.sharpeRatio : (row.sharpe_ratio || 0)),
-        jensenAlpha: Number(audited?.jensenAlpha !== undefined ? audited.jensenAlpha : (row.jensen_alpha || 0)),
-        beta: Number(audited?.beta !== undefined ? audited.beta : (row.beta || 1.0)),
-        sortinoRatio: Number(audited?.sortinoRatio !== undefined ? audited.sortinoRatio : (row.sortino_ratio || 0)),
-        maxDrawdown: Number(audited?.maxDrawdown !== undefined ? audited.maxDrawdown : (row.max_drawdown || 0)),
+        volatility1Y: Number(row.volatility_1y !== null && row.volatility_1y !== undefined ? row.volatility_1y : (audited?.volatility1Y || 0)),
+        sharpeRatio: Number(row.sharpe_ratio !== null && row.sharpe_ratio !== undefined ? row.sharpe_ratio : (audited?.sharpeRatio || 0)),
+        jensenAlpha: Number(row.jensen_alpha !== null && row.jensen_alpha !== undefined ? row.jensen_alpha : (audited?.jensenAlpha || 0)),
+        beta: Number(row.beta !== null && row.beta !== undefined ? row.beta : (audited?.beta || 1.0)),
+        sortinoRatio: Number(row.sortino_ratio !== null && row.sortino_ratio !== undefined ? row.sortino_ratio : (audited?.sortinoRatio || 0)),
+        maxDrawdown: Number(row.max_drawdown !== null && row.max_drawdown !== undefined ? row.max_drawdown : (audited?.maxDrawdown || 0)),
         history: [],
       };
     });

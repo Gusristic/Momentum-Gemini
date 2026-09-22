@@ -16,6 +16,7 @@ import {
   getSavedSupabaseSettings, 
   saveSupabaseSettings, 
   syncFundsToSupabase, 
+  fetchFundsFromSupabase,
   SUPABASE_SQL_SCHEMA,
   SupabaseSettings
 } from '../utils/supabaseClient';
@@ -40,6 +41,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
 
   const [settings, setSettings] = useState<SupabaseSettings>(getSavedSupabaseSettings());
   const [testing, setTesting] = useState(false);
+  const [fetchingRemote, setFetchingRemote] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
   const [showSql, setShowSql] = useState(false);
@@ -53,6 +55,43 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
     setTesting(false);
     setTestResult(result);
     onSyncCompleted(result.success);
+  };
+
+  const handleFetchFromSupabase = async () => {
+    if (!settings.url || !settings.anonKey) {
+      setTestResult({
+        success: false,
+        message: 'Introduce la URL y Anon Key de Supabase para descargar tu cartera.'
+      });
+      return;
+    }
+    setFetchingRemote(true);
+    setTestResult(null);
+    saveSupabaseSettings(settings);
+
+    try {
+      const remoteFunds = await fetchFundsFromSupabase(settings);
+      if (remoteFunds && remoteFunds.length > 0) {
+        onFundsImported(remoteFunds);
+        setTestResult({
+          success: true,
+          message: `¡Cartera recuperada con éxito! Se han cargado ${remoteFunds.length} fondos directamente desde tu base de datos Supabase.`
+        });
+        onSyncCompleted(true);
+      } else {
+        setTestResult({
+          success: false,
+          message: 'No se encontraron registros de fondos en la tabla `antonacci_funds` de Supabase. Pulsa "Guardar y Sincronizar" primero desde tu dispositivo principal.'
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: `Error al conectar con Supabase: ${err.message || err}`
+      });
+    } finally {
+      setFetchingRemote(false);
+    }
   };
 
   const handleCopySql = () => {
@@ -176,13 +215,24 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
             </div>
           )}
 
+          {/* Multi-device helper info */}
+          <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-300 space-y-1.5">
+            <span className="font-semibold text-emerald-400 block">📱 Sincronización entre varios dispositivos / móviles:</span>
+            <p className="text-slate-400">
+              1. En tu ordenador o dispositivo principal: haz tus cambios y pulsa <strong>«Guardar en Supabase»</strong>.
+            </p>
+            <p className="text-slate-400">
+              2. En tu otro dispositivo o móvil: abre este modal, pon las mismas credenciales y pulsa <strong>«Rescatar Cartera de Supabase»</strong>. Cargará exactamente los mismos fondos y datos.
+            </p>
+          </div>
+
           {/* Action buttons */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleExportJson}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition-colors cursor-pointer"
                 title="Descargar copia de seguridad en JSON"
               >
                 <Download className="w-3.5 h-3.5" /> Exportar JSON
@@ -194,15 +244,29 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
               </label>
             </div>
 
-            <button
-              type="button"
-              onClick={handleTestAndSave}
-              disabled={testing}
-              className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${testing ? 'animate-spin' : ''}`} />
-              {testing ? 'Conectando...' : 'Guardar y Sincronizar Supabase'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleFetchFromSupabase}
+                disabled={fetchingRemote || testing}
+                className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+                title="Descargar la cartera guardada en Supabase y aplicarla en este dispositivo"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${fetchingRemote ? 'animate-spin text-emerald-400' : ''}`} />
+                {fetchingRemote ? 'Descargando...' : 'Rescatar Cartera de Supabase'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestAndSave}
+                disabled={testing || fetchingRemote}
+                className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+                title="Guardar los fondos actuales en tu base de datos Supabase"
+              >
+                <Database className={`w-3.5 h-3.5 ${testing ? 'animate-pulse' : ''}`} />
+                {testing ? 'Guardando...' : 'Guardar en Supabase'}
+              </button>
+            </div>
           </div>
 
           {/* SQL Schema helper toggle */}
