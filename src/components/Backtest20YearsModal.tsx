@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { X, TrendingUp, ShieldAlert, BarChart3, ArrowRightLeft, Sparkles, CheckCircle2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, TrendingUp, ShieldAlert, BarChart3, ArrowRightLeft, Sparkles, CheckCircle2, ArrowUpDown } from 'lucide-react';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -132,6 +132,202 @@ export const Backtest20YearsModal: React.FC<BacktestModalProps> = ({
       msci: calcStats('msci'),
     };
   }, [trajectory20Y]);
+
+  const [tableSortKey, setTableSortKey] = useState<string>('metric');
+  const [tableSortDir, setTableSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleTableSort = (key: string) => {
+    if (tableSortKey === key) {
+      setTableSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setTableSortKey(key);
+      setTableSortDir('desc');
+    }
+  };
+
+  const metricRows = useMemo(() => {
+    const classicFinal = dynamicModelStats?.classic.finalCap ?? 71800;
+    const instFinal = dynamicModelStats?.institutional.finalCap ?? 81600;
+    const compFinal = dynamicModelStats?.composite.finalCap ?? 77400;
+    const progFinal = dynamicModelStats?.progressive.finalCap ?? 79200;
+
+    return [
+      {
+        id: 'finalCap',
+        metric: 'Capital Final (10.000 € inv.)',
+        classicVal: classicFinal,
+        classicText: `${classicFinal.toLocaleString('es-ES')} €`,
+        classicClass: 'text-white font-bold',
+        instVal: instFinal,
+        instText: `${instFinal.toLocaleString('es-ES')} €`,
+        instClass: 'text-teal-400 font-bold bg-teal-950/20',
+        compVal: compFinal,
+        compText: `${compFinal.toLocaleString('es-ES')} €`,
+        compClass: 'text-emerald-400 font-bold bg-emerald-950/20',
+        progVal: progFinal,
+        progText: `${progFinal.toLocaleString('es-ES')} €`,
+        progClass: 'text-purple-400 font-bold',
+        msciVal: 54200,
+        msciText: '54.200 €',
+        msciClass: 'text-slate-400'
+      },
+      {
+        id: 'cagr',
+        metric: 'CAGR (Rentabilidad Anual Compuesta)',
+        classicVal: parseFloat((dynamicModelStats?.classic.cagr ?? '+10.3%').replace(/[+%]/g, '').replace(',', '.')),
+        classicText: dynamicModelStats?.classic.cagr ?? '+10,3%',
+        classicClass: 'text-slate-200',
+        instVal: parseFloat((dynamicModelStats?.institutional.cagr ?? '+11.1%').replace(/[+%]/g, '').replace(',', '.')),
+        instText: dynamicModelStats?.institutional.cagr ?? '+11,1%',
+        instClass: 'text-teal-400 font-bold bg-teal-950/20',
+        compVal: parseFloat((dynamicModelStats?.composite.cagr ?? '+10.8%').replace(/[+%]/g, '').replace(',', '.')),
+        compText: dynamicModelStats?.composite.cagr ?? '+10,8%',
+        compClass: 'text-emerald-400 font-bold bg-emerald-950/20',
+        progVal: parseFloat((dynamicModelStats?.progressive.cagr ?? '+10.9%').replace(/[+%]/g, '').replace(',', '.')),
+        progText: dynamicModelStats?.progressive.cagr ?? '+10,9%',
+        progClass: 'text-purple-400 font-bold',
+        msciVal: 8.8,
+        msciText: '+8,8%',
+        msciClass: 'text-slate-400'
+      },
+      {
+        id: 'vol',
+        metric: 'Volatilidad Anualizada (σ)',
+        classicVal: 12.6,
+        classicText: '12,6%',
+        classicClass: 'text-slate-200',
+        instVal: 12.1,
+        instText: '12,1%',
+        instClass: 'text-teal-300 bg-teal-950/20',
+        compVal: 12.9,
+        compText: '12,9%',
+        compClass: 'text-slate-200 bg-emerald-950/20',
+        progVal: 14.2,
+        progText: '14,2%',
+        progClass: 'text-slate-200',
+        msciVal: 15.4,
+        msciText: '15,4%',
+        msciClass: 'text-rose-400'
+      },
+      {
+        id: 'maxDd',
+        metric: 'Máximo Drawdown Histórico',
+        classicVal: parseFloat((dynamicModelStats?.classic.maxDd ?? '-22.8%').replace(/[-%]/g, '').replace(',', '.')),
+        classicText: dynamicModelStats?.classic.maxDd ?? '-22,8%',
+        classicClass: 'text-rose-400',
+        instVal: parseFloat((dynamicModelStats?.institutional.maxDd ?? '-19.8%').replace(/[-%]/g, '').replace(',', '.')),
+        instText: dynamicModelStats?.institutional.maxDd ?? '-19,8%',
+        instClass: 'text-teal-400 font-bold bg-teal-950/20',
+        compVal: parseFloat((dynamicModelStats?.composite.maxDd ?? '-21.4%').replace(/[-%]/g, '').replace(',', '.')),
+        compText: dynamicModelStats?.composite.maxDd ?? '-21,4%',
+        compClass: 'text-emerald-400 font-bold bg-emerald-950/20',
+        progVal: parseFloat((dynamicModelStats?.progressive.maxDd ?? '-23.5%').replace(/[-%]/g, '').replace(',', '.')),
+        progText: dynamicModelStats?.progressive.maxDd ?? '-23,5%',
+        progClass: 'text-rose-400',
+        msciVal: 54.1,
+        msciText: '-54,1%',
+        msciClass: 'text-rose-400 font-bold'
+      },
+      {
+        id: 'sharpe',
+        metric: 'Ratio de Sharpe (rf = 2%)',
+        classicVal: 0.72,
+        classicText: '0,72',
+        classicClass: 'text-slate-200',
+        instVal: 0.84,
+        instText: '0,84',
+        instClass: 'text-teal-400 font-bold bg-teal-950/20',
+        compVal: 0.79,
+        compText: '0,79',
+        compClass: 'text-emerald-400 font-bold bg-emerald-950/20',
+        progVal: 0.74,
+        progText: '0,74',
+        progClass: 'text-slate-200',
+        msciVal: 0.44,
+        msciText: '0,44',
+        msciClass: 'text-slate-400'
+      },
+      {
+        id: 'turnover',
+        metric: 'Rotación Media (Traspasos / año)',
+        classicVal: 1.4,
+        classicText: '1,4 / año',
+        classicClass: 'text-emerald-400 font-bold',
+        instVal: 1.45,
+        instText: '1,45 / año',
+        instClass: 'text-teal-400 font-bold bg-teal-950/20',
+        compVal: 2.6,
+        compText: '2,6 / año',
+        compClass: 'text-slate-200 bg-emerald-950/20',
+        progVal: 5.1,
+        progText: '5,1 / año',
+        progClass: 'text-amber-400',
+        msciVal: 0,
+        msciText: '0',
+        msciClass: 'text-slate-400'
+      },
+      {
+        id: 'shelterTime',
+        metric: 'Tiempo de mercado en Refugio (Bonos/Cash)',
+        classicVal: 28,
+        classicText: '28% del tiempo',
+        classicClass: 'text-slate-200',
+        instVal: 27,
+        instText: '27% del tiempo',
+        instClass: 'text-slate-200 bg-teal-950/20',
+        compVal: 26,
+        compText: '26% del tiempo',
+        compClass: 'text-slate-200 bg-emerald-950/20',
+        progVal: 23,
+        progText: '23% del tiempo',
+        progClass: 'text-slate-200',
+        msciVal: 0,
+        msciText: '0%',
+        msciClass: 'text-slate-400'
+      }
+    ];
+  }, [dynamicModelStats]);
+
+  const sortedMetricRows = useMemo(() => {
+    return [...metricRows].sort((a, b) => {
+      let valA: any = 0;
+      let valB: any = 0;
+
+      switch (tableSortKey) {
+        case 'metric':
+          valA = a.metric;
+          valB = b.metric;
+          break;
+        case 'classic':
+          valA = a.classicVal;
+          valB = b.classicVal;
+          break;
+        case 'institutional':
+          valA = a.instVal;
+          valB = b.instVal;
+          break;
+        case 'composite':
+          valA = a.compVal;
+          valB = b.compVal;
+          break;
+        case 'progressive':
+          valA = a.progVal;
+          valB = b.progVal;
+          break;
+        case 'msci':
+          valA = a.msciVal;
+          valB = b.msciVal;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof valA === 'string') {
+        return tableSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return tableSortDir === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+    });
+  }, [metricRows, tableSortKey, tableSortDir]);
 
   if (!isOpen) return null;
 
@@ -527,71 +723,91 @@ export const Backtest20YearsModal: React.FC<BacktestModalProps> = ({
             <table className="w-full text-xs font-mono text-left">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400">
-                  <th className="py-2.5 px-3">Métrica Cuantitativa</th>
-                  <th className="py-2.5 px-3 text-center">12M Puro</th>
-                  <th className="py-2.5 px-3 text-center bg-teal-950/20 text-teal-400">Institucional (12-1)</th>
-                  <th className="py-2.5 px-3 text-center bg-emerald-950/20 text-emerald-400">Equilibrado (12/6/3)</th>
-                  <th className="py-2.5 px-3 text-center">Progresivo (1/3/6/12)</th>
-                  <th className="py-2.5 px-3 text-center text-slate-500">Buy & Hold (MSCI World)</th>
+                  <th 
+                    onClick={() => handleTableSort('metric')}
+                    className="py-2.5 px-3 cursor-pointer select-none group hover:text-white transition-colors"
+                    title="Ordenar por Métrica"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Métrica Cuantitativa</span>
+                      <span className={`transition-opacity ${tableSortKey === 'metric' ? 'text-emerald-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                        {tableSortKey === 'metric' ? (tableSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                      </span>
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleTableSort('classic')}
+                    className="py-2.5 px-3 text-center cursor-pointer select-none group hover:text-white transition-colors"
+                    title="Ordenar por 12M Puro"
+                  >
+                    <div className="inline-flex items-center justify-center gap-1.5">
+                      <span>12M Puro</span>
+                      <span className={`transition-opacity ${tableSortKey === 'classic' ? 'text-emerald-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                        {tableSortKey === 'classic' ? (tableSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                      </span>
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleTableSort('institutional')}
+                    className="py-2.5 px-3 text-center bg-teal-950/20 text-teal-400 cursor-pointer select-none group hover:text-teal-300 transition-colors"
+                    title="Ordenar por Institucional (12-1)"
+                  >
+                    <div className="inline-flex items-center justify-center gap-1.5">
+                      <span>Institucional (12-1)</span>
+                      <span className={`transition-opacity ${tableSortKey === 'institutional' ? 'text-teal-300 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                        {tableSortKey === 'institutional' ? (tableSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                      </span>
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleTableSort('composite')}
+                    className="py-2.5 px-3 text-center bg-emerald-950/20 text-emerald-400 cursor-pointer select-none group hover:text-emerald-300 transition-colors"
+                    title="Ordenar por Equilibrado (12/6/3)"
+                  >
+                    <div className="inline-flex items-center justify-center gap-1.5">
+                      <span>Equilibrado (12/6/3)</span>
+                      <span className={`transition-opacity ${tableSortKey === 'composite' ? 'text-emerald-300 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                        {tableSortKey === 'composite' ? (tableSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                      </span>
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleTableSort('progressive')}
+                    className="py-2.5 px-3 text-center cursor-pointer select-none group hover:text-white transition-colors"
+                    title="Ordenar por Progresivo (1/3/6/12)"
+                  >
+                    <div className="inline-flex items-center justify-center gap-1.5">
+                      <span>Progresivo (1/3/6/12)</span>
+                      <span className={`transition-opacity ${tableSortKey === 'progressive' ? 'text-purple-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                        {tableSortKey === 'progressive' ? (tableSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                      </span>
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleTableSort('msci')}
+                    className="py-2.5 px-3 text-center text-slate-500 cursor-pointer select-none group hover:text-slate-300 transition-colors"
+                    title="Ordenar por Buy & Hold"
+                  >
+                    <div className="inline-flex items-center justify-center gap-1.5">
+                      <span>Buy & Hold (MSCI World)</span>
+                      <span className={`transition-opacity ${tableSortKey === 'msci' ? 'text-slate-300 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                        {tableSortKey === 'msci' ? (tableSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                      </span>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                <tr>
-                  <td className="py-2.5 px-3 text-slate-300">Capital Final (10.000 € inv.)</td>
-                  <td className="py-2.5 px-3 text-center text-white font-bold">{dynamicModelStats?.classic.finalCap.toLocaleString('es-ES') ?? '71.800'} €</td>
-                  <td className="py-2.5 px-3 text-center text-teal-400 font-bold bg-teal-950/20">{dynamicModelStats?.institutional.finalCap.toLocaleString('es-ES') ?? '81.600'} €</td>
-                  <td className="py-2.5 px-3 text-center text-emerald-400 font-bold bg-emerald-950/20">{dynamicModelStats?.composite.finalCap.toLocaleString('es-ES') ?? '77.400'} €</td>
-                  <td className="py-2.5 px-3 text-center text-purple-400 font-bold">{dynamicModelStats?.progressive.finalCap.toLocaleString('es-ES') ?? '79.200'} €</td>
-                  <td className="py-2.5 px-3 text-center text-slate-400">54.200 €</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 text-slate-300">CAGR (Rentabilidad Anual Compuesta)</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200">{dynamicModelStats?.classic.cagr ?? '+10,3%'}</td>
-                  <td className="py-2.5 px-3 text-center text-teal-400 font-bold bg-teal-950/20">{dynamicModelStats?.institutional.cagr ?? '+11,1%'}</td>
-                  <td className="py-2.5 px-3 text-center text-emerald-400 font-bold bg-emerald-950/20">{dynamicModelStats?.composite.cagr ?? '+10,8%'}</td>
-                  <td className="py-2.5 px-3 text-center text-purple-400 font-bold">{dynamicModelStats?.progressive.cagr ?? '+10,9%'}</td>
-                  <td className="py-2.5 px-3 text-center text-slate-400">+8,8%</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 text-slate-300">Volatilidad Anualizada (σ)</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200">12,6%</td>
-                  <td className="py-2.5 px-3 text-center text-teal-300 bg-teal-950/20">12,1%</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200 bg-emerald-950/20">12,9%</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200">14,2%</td>
-                  <td className="py-2.5 px-3 text-center text-rose-400">15,4%</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 text-slate-300">Máximo Drawdown Histórico</td>
-                  <td className="py-2.5 px-3 text-center text-rose-400">{dynamicModelStats?.classic.maxDd ?? '-22,8%'}</td>
-                  <td className="py-2.5 px-3 text-center text-teal-400 font-bold bg-teal-950/20">{dynamicModelStats?.institutional.maxDd ?? '-19,8%'}</td>
-                  <td className="py-2.5 px-3 text-center text-emerald-400 font-bold bg-emerald-950/20">{dynamicModelStats?.composite.maxDd ?? '-21,4%'}</td>
-                  <td className="py-2.5 px-3 text-center text-rose-400">{dynamicModelStats?.progressive.maxDd ?? '-23,5%'}</td>
-                  <td className="py-2.5 px-3 text-center text-rose-400 font-bold">-54,1%</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 text-slate-300">Ratio de Sharpe (rf = 2%)</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200">0,72</td>
-                  <td className="py-2.5 px-3 text-center text-teal-400 font-bold bg-teal-950/20">0,84</td>
-                  <td className="py-2.5 px-3 text-center text-emerald-400 font-bold bg-emerald-950/20">0,79</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200">0,74</td>
-                  <td className="py-2.5 px-3 text-center text-slate-400">0,44</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 text-slate-300">Rotación Media (Traspasos / año)</td>
-                  <td className="py-2.5 px-3 text-center text-emerald-400 font-bold">1,4 / año</td>
-                  <td className="py-2.5 px-3 text-center text-teal-400 font-bold bg-teal-950/20">1,45 / año</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200 bg-emerald-950/20">2,6 / año</td>
-                  <td className="py-2.5 px-3 text-center text-amber-400">5,1 / año</td>
-                  <td className="py-2.5 px-3 text-center text-slate-400">0</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 text-slate-300">Tiempo de mercado en Refugio (Bonos/Cash)</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200">28% del tiempo</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200 bg-teal-950/20">27% del tiempo</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200 bg-emerald-950/20">26% del tiempo</td>
-                  <td className="py-2.5 px-3 text-center text-slate-200">23% del tiempo</td>
-                  <td className="py-2.5 px-3 text-center text-slate-400">0%</td>
-                </tr>
+                {sortedMetricRows.map((row) => (
+                  <tr key={row.id}>
+                    <td className="py-2.5 px-3 text-slate-300">{row.metric}</td>
+                    <td className={`py-2.5 px-3 text-center ${row.classicClass}`}>{row.classicText}</td>
+                    <td className={`py-2.5 px-3 text-center ${row.instClass}`}>{row.instText}</td>
+                    <td className={`py-2.5 px-3 text-center ${row.compClass}`}>{row.compText}</td>
+                    <td className={`py-2.5 px-3 text-center ${row.progClass}`}>{row.progText}</td>
+                    <td className={`py-2.5 px-3 text-center ${row.msciClass}`}>{row.msciText}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

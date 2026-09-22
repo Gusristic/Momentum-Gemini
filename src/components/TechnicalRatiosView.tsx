@@ -23,7 +23,8 @@ import {
   HelpCircle,
   BarChart3,
   Flame,
-  ShieldCheck
+  ShieldCheck,
+  ArrowUpDown
 } from 'lucide-react';
 import { FundISIN } from '../types';
 
@@ -37,6 +38,17 @@ export const TechnicalRatiosView: React.FC<TechnicalRatiosViewProps> = ({
   selectedWinnerId,
 }) => {
   const [activeTab, setActiveTab] = useState<'SHARPE' | 'ALPHA' | 'RISK_RETURN_FRONTIER' | 'MATRIX'>('SHARPE');
+  const [matrixSortKey, setMatrixSortKey] = useState<string>('sharpeRatio');
+  const [matrixSortDir, setMatrixSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const handleMatrixSort = (key: string) => {
+    if (matrixSortKey === key) {
+      setMatrixSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setMatrixSortKey(key);
+      setMatrixSortDir(key === 'name' || key === 'volatility1Y' || key === 'maxDrawdown' ? 'asc' : 'desc');
+    }
+  };
 
   // Filter out disabled and blank funds so only active slots are analyzed
   const validFunds = funds.filter(f => !f.isDisabled && f.isin && f.isin.trim() !== '');
@@ -408,46 +420,114 @@ export const TechnicalRatiosView: React.FC<TechnicalRatiosViewProps> = ({
       )}
 
       {/* TAB 4: COMPLETE TECHNICAL MATRIX */}
-      {activeTab === 'MATRIX' && (
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70">
-          <table className="w-full text-left text-xs border-collapse font-mono">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase tracking-wider bg-slate-950">
-                <th className="py-3 px-4">Fondo / ISIN</th>
-                <th className="py-3 px-3 text-right">Sharpe</th>
-                <th className="py-3 px-3 text-right">Alfa (α)</th>
-                <th className="py-3 px-3 text-right">Beta (β)</th>
-                <th className="py-3 px-3 text-right">Sortino</th>
-                <th className="py-3 px-3 text-right">Volatilidad (σ)</th>
-                <th className="py-3 px-3 text-right">Max Drawdown</th>
-                <th className="py-3 px-3 text-right">Calmar Ratio</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {activeFunds.map((fund, index) => {
-                const isWinner = fund.id === selectedWinnerId;
-                const calmar = fund.maxDrawdown !== 0 ? Math.abs(fund.return12M / fund.maxDrawdown).toFixed(2) : 'N/A';
+      {activeTab === 'MATRIX' && (() => {
+        const sortedMatrixFunds = [...activeFunds].sort((a, b) => {
+          let valA: any = 0;
+          let valB: any = 0;
+          switch (matrixSortKey) {
+            case 'name':
+              valA = a.name || '';
+              valB = b.name || '';
+              break;
+            case 'sharpeRatio':
+              valA = a.sharpeRatio;
+              valB = b.sharpeRatio;
+              break;
+            case 'jensenAlpha':
+              valA = a.jensenAlpha;
+              valB = b.jensenAlpha;
+              break;
+            case 'beta':
+              valA = a.beta;
+              valB = b.beta;
+              break;
+            case 'sortinoRatio':
+              valA = a.sortinoRatio;
+              valB = b.sortinoRatio;
+              break;
+            case 'volatility1Y':
+              valA = a.volatility1Y;
+              valB = b.volatility1Y;
+              break;
+            case 'maxDrawdown':
+              valA = a.maxDrawdown;
+              valB = b.maxDrawdown;
+              break;
+            case 'calmar':
+              valA = a.maxDrawdown !== 0 ? Math.abs(a.return12M / a.maxDrawdown) : 0;
+              valB = b.maxDrawdown !== 0 ? Math.abs(b.return12M / b.maxDrawdown) : 0;
+              break;
+            default:
+              valA = a.sharpeRatio;
+              valB = b.sharpeRatio;
+          }
+          if (typeof valA === 'string') {
+            return matrixSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+          }
+          return matrixSortDir === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+        });
 
-                return (
-                  <tr key={`${fund.id}-${fund.slotNumber || index}`} className={`hover:bg-slate-900/60 ${isWinner ? 'bg-emerald-950/20 font-bold' : ''}`}>
-                    <td className="py-2.5 px-4">
-                      <div className="text-slate-200 font-sans">{fund.name}</div>
-                      <div className="text-slate-500 text-[10px]">{fund.isin}</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-emerald-400">{fund.sharpeRatio.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right text-teal-400">{fund.jensenAlpha > 0 ? `+${fund.jensenAlpha}%` : `${fund.jensenAlpha}%`}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-300">{fund.beta.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right text-sky-400">{fund.sortinoRatio.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right text-amber-400">{fund.volatility1Y}%</td>
-                    <td className="py-2.5 px-3 text-right text-rose-400">{fund.maxDrawdown}%</td>
-                    <td className="py-2.5 px-3 text-right text-slate-200">{calmar}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+        const renderTh = (key: string, label: string, align: 'left' | 'right' = 'right', extraClass: string = '') => {
+          const isCurrent = matrixSortKey === key;
+          return (
+            <th 
+              onClick={() => handleMatrixSort(key)}
+              className={`py-3 px-3 cursor-pointer select-none group hover:text-white transition-colors ${
+                align === 'right' ? 'text-right' : 'text-left'
+              } ${extraClass}`}
+              title={`Ordenar por ${label}`}
+            >
+              <div className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
+                <span>{label}</span>
+                <span className={`transition-opacity ${isCurrent ? 'text-emerald-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                  {isCurrent ? (matrixSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                </span>
+              </div>
+            </th>
+          );
+        };
+
+        return (
+          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70">
+            <table className="w-full text-left text-xs border-collapse font-mono">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase tracking-wider bg-slate-950">
+                  {renderTh('name', 'Fondo / ISIN', 'left', 'px-4')}
+                  {renderTh('sharpeRatio', 'Sharpe')}
+                  {renderTh('jensenAlpha', 'Alfa (α)')}
+                  {renderTh('beta', 'Beta (β)')}
+                  {renderTh('sortinoRatio', 'Sortino')}
+                  {renderTh('volatility1Y', 'Volatilidad (σ)')}
+                  {renderTh('maxDrawdown', 'Max Drawdown')}
+                  {renderTh('calmar', 'Calmar Ratio')}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {sortedMatrixFunds.map((fund, index) => {
+                  const isWinner = fund.id === selectedWinnerId;
+                  const calmar = fund.maxDrawdown !== 0 ? Math.abs(fund.return12M / fund.maxDrawdown).toFixed(2) : 'N/A';
+
+                  return (
+                    <tr key={`${fund.id}-${fund.slotNumber || index}`} className={`hover:bg-slate-900/60 ${isWinner ? 'bg-emerald-950/20 font-bold' : ''}`}>
+                      <td className="py-2.5 px-4">
+                        <div className="text-slate-200 font-sans">{fund.name}</div>
+                        <div className="text-slate-500 text-[10px]">{fund.isin}</div>
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-emerald-400">{fund.sharpeRatio.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right text-teal-400">{fund.jensenAlpha > 0 ? `+${fund.jensenAlpha}%` : `${fund.jensenAlpha}%`}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-300">{fund.beta.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right text-sky-400">{fund.sortinoRatio.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right text-amber-400">{fund.volatility1Y}%</td>
+                      <td className="py-2.5 px-3 text-right text-rose-400">{fund.maxDrawdown}%</td>
+                      <td className="py-2.5 px-3 text-right text-slate-200">{calmar}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
 
     </div>
   );

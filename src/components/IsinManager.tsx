@@ -66,6 +66,39 @@ export const IsinManager: React.FC<IsinManagerProps> = ({
   const [copiedIsin, setCopiedIsin] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const [sortKey, setSortKey] = useState<string>('slotNumber');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'slotNumber' || key === 'name' || key === 'category' ? 'asc' : 'desc');
+    }
+  };
+
+  const renderSortHeader = (key: string, label: React.ReactNode, align: 'left' | 'center' | 'right' = 'left', extraClass: string = '') => {
+    const isCurrent = sortKey === key;
+    return (
+      <th 
+        onClick={() => handleSort(key)}
+        className={`py-3 px-3.5 cursor-pointer select-none group hover:text-white transition-colors ${
+          align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
+        } ${extraClass}`}
+        title={`Clic para ordenar por ${typeof label === 'string' ? label : key} (${isCurrent && sortDir === 'asc' ? 'descendente' : 'ascendente'})`}
+      >
+        <div className={`inline-flex items-center gap-1.5 ${
+          align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+        }`}>
+          <span>{label}</span>
+          <span className={`inline-flex items-center transition-opacity ${isCurrent ? 'text-emerald-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+            {isCurrent ? (sortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-3 h-3" />}
+          </span>
+        </div>
+      </th>
+    );
+  };
 
   // Quick ISIN state
   const [quickSlot, setQuickSlot] = useState<number>(1);
@@ -162,6 +195,61 @@ export const IsinManager: React.FC<IsinManagerProps> = ({
     return matchesSearch;
   });
 
+  const sortedFunds = [...filteredFunds].sort((a, b) => {
+    let valA: any = 0;
+    let valB: any = 0;
+
+    switch (sortKey) {
+      case 'slotNumber':
+        valA = a.slotNumber;
+        valB = b.slotNumber;
+        break;
+      case 'isin':
+        valA = a.isin || '';
+        valB = b.isin || '';
+        break;
+      case 'name':
+        valA = a.name || '';
+        valB = b.name || '';
+        break;
+      case 'category':
+        valA = a.categoryLabel || '';
+        valB = b.categoryLabel || '';
+        break;
+      case 'currentNAV':
+        valA = a.currentNAV || 0;
+        valB = b.currentNAV || 0;
+        break;
+      case 'score': {
+        const scoreA = getScoreResult(a.id)?.relativeMomentumScore ?? a.return12M ?? -999;
+        const scoreB = getScoreResult(b.id)?.relativeMomentumScore ?? b.return12M ?? -999;
+        valA = scoreA;
+        valB = scoreB;
+        break;
+      }
+      case 'sharpeRatio':
+        valA = a.sharpeRatio || 0;
+        valB = b.sharpeRatio || 0;
+        break;
+      case 'jensenAlpha':
+        valA = a.jensenAlpha || 0;
+        valB = b.jensenAlpha || 0;
+        break;
+      case 'capital':
+        valA = (a.sharesHeld || 0) * (a.currentNAV || 0);
+        valB = (b.sharesHeld || 0) * (b.currentNAV || 0);
+        break;
+      default:
+        valA = a.slotNumber;
+        valB = b.slotNumber;
+    }
+
+    if (typeof valA === 'string' && typeof valB === 'string') {
+      return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    return sortDir === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+  });
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-lg">
       
@@ -243,11 +331,11 @@ export const IsinManager: React.FC<IsinManagerProps> = ({
             <button
               onClick={onSyncRealMarketData}
               disabled={isSyncing}
-              className="text-xs font-semibold px-3 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              title="Consultar cotizaciones oficiales en tiempo real desde Yahoo Finance y Morningstar"
+              className="text-xs font-semibold px-3 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              title="Consultar cotizaciones oficiales en tiempo real desde Morningstar, FT e Investing"
             >
               <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'Consultando...' : 'Sincronizar Datos Reales'}</span>
+              <span>{isSyncing ? 'Consultando...' : 'Actualizar Cotizaciones Online'}</span>
             </button>
           )}
 
@@ -374,10 +462,10 @@ export const IsinManager: React.FC<IsinManagerProps> = ({
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-slate-800 text-slate-400 font-mono text-[11px] bg-slate-950/90 uppercase tracking-wider">
-              <th className="py-3 px-3.5">Slot / ISIN</th>
-              <th className="py-3 px-3.5">Fondo & Categoría</th>
-              <th className="py-3 px-3.5 text-right">VL (€)</th>
-              <th className="py-3 px-3.5 text-center">
+              {renderSortHeader('slotNumber', 'Slot / ISIN', 'left')}
+              {renderSortHeader('name', 'Fondo & Categoría', 'left')}
+              {renderSortHeader('currentNAV', 'VL (€)', 'right')}
+              {renderSortHeader('score', (
                 <div className="flex flex-col items-center">
                   <span>
                     {momentumMode === 'MOMENTUM_12_MINUS_1'
@@ -390,25 +478,25 @@ export const IsinManager: React.FC<IsinManagerProps> = ({
                   </span>
                   <span className="text-[9px] text-slate-500 font-normal normal-case">
                     {momentumMode === 'MOMENTUM_12_MINUS_1'
-                      ? 'MSCI/AQR · 12M sin mes t (ignora ruido)'
+                      ? 'MSCI/AQR · 12M sin mes t'
                       : momentumMode === 'PROGRESSIVE_STEPPED'
                       ? '40% 1M · 30% 3M · 20% 6M · 10% 12M'
                       : momentumMode === 'COMPOSITE_BLENDED'
                       ? '50% 12M · 30% 6M · 20% 3M'
-                      : 'Ventana 100% Gary Antonacci'}
+                      : '100% Gary Antonacci'}
                   </span>
                 </div>
-              </th>
-              <th className="py-3 px-3.5 text-center">Sharpe (1Y)</th>
-              <th className="py-3 px-3.5 text-center">Alfa (α)</th>
+              ), 'center')}
+              {renderSortHeader('sharpeRatio', 'Sharpe (1Y)', 'center')}
+              {renderSortHeader('jensenAlpha', 'Alfa (α)', 'center')}
               <th className="py-3 px-3.5 text-center">Mom. Absoluto</th>
               <th className="py-3 px-3.5 text-center">Fuentes</th>
-              <th className="py-3 px-3.5 text-right">Cartera (€)</th>
+              {renderSortHeader('capital', 'Cartera (€)', 'right')}
               <th className="py-3 px-3.5 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/50">
-            {filteredFunds.map((fund, index) => {
+            {sortedFunds.map((fund, index) => {
               const scoreResult = getScoreResult(fund.id);
               const isCurrentHeld = fund.id === activeFundId;
               const isSlotDisabled = !!fund.isDisabled;

@@ -15,7 +15,8 @@ import {
   Flame,
   Award,
   Zap,
-  Percent
+  Percent,
+  ArrowUpDown
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -64,6 +65,17 @@ export const DualMomentumModelsComparison: React.FC<Props> = ({ funds }) => {
   });
 
   const [inspectedModelId, setInspectedModelId] = useState<DualMomentumModelId>('GEM_MODERN_CASH_FILTER');
+  const [metricsSortKey, setMetricsSortKey] = useState<string>('cagr');
+  const [metricsSortDir, setMetricsSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const handleMetricsSort = (key: string) => {
+    if (metricsSortKey === key) {
+      setMetricsSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setMetricsSortKey(key);
+      setMetricsSortDir(key === 'name' || key === 'maxDrawdown' || key === 'volatility' || key === 'annualTurnover' ? 'asc' : 'desc');
+    }
+  };
 
   // Toggle model visibility
   const toggleModel = (id: DualMomentumModelId) => {
@@ -426,87 +438,165 @@ export const DualMomentumModelsComparison: React.FC<Props> = ({ funds }) => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 font-mono text-[11px] uppercase">
-                <th className="pb-3 font-semibold">Modelo de Dual Momentum</th>
-                <th className="pb-3 font-semibold text-right">CAGR (%)</th>
-                <th className="pb-3 font-semibold text-right">Max Drawdown</th>
-                <th className="pb-3 font-semibold text-right">Volatilidad</th>
-                <th className="pb-3 font-semibold text-right">Sharpe</th>
-                <th className="pb-3 font-semibold text-right">Sortino</th>
-                <th className="pb-3 font-semibold text-right">Calmar</th>
-                <th className="pb-3 font-semibold text-right">Traspasos/Año</th>
-                <th className="pb-3 font-semibold text-right">Ahorro Fiscal España</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
-              {allModelsList.map(model => {
-                const m = DUAL_MOMENTUM_COMPARISON_METRICS[model.id];
-                const isInspected = inspectedModelId === model.id;
-                const isBenchmark = model.category === 'BENCHMARK';
+          {(() => {
+            const sortedModels = [...allModelsList].sort((a, b) => {
+              const mA = DUAL_MOMENTUM_COMPARISON_METRICS[a.id];
+              const mB = DUAL_MOMENTUM_COMPARISON_METRICS[b.id];
+              let valA: any = 0;
+              let valB: any = 0;
 
-                return (
-                  <tr 
-                    key={model.id}
-                    onClick={() => setInspectedModelId(model.id)}
-                    className={`cursor-pointer transition-colors ${
-                      isInspected 
-                        ? 'bg-emerald-500/10 text-white font-semibold' 
-                        : 'hover:bg-slate-800/50 text-slate-300'
-                    }`}
-                  >
-                    <td className="py-3 flex items-center gap-2">
-                      <span 
-                        className="w-2.5 h-2.5 rounded-full shrink-0" 
-                        style={{ backgroundColor: model.color }} 
-                      />
-                      <span className="font-sans font-medium">{model.name}</span>
-                      {model.id === 'GEM_MODERN_CASH_FILTER' && (
-                        <span className="px-1.5 py-0.2 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                          Recomendado
-                        </span>
-                      )}
-                    </td>
+              switch (metricsSortKey) {
+                case 'name':
+                  valA = a.name;
+                  valB = b.name;
+                  break;
+                case 'cagr':
+                  valA = mA.cagr;
+                  valB = mB.cagr;
+                  break;
+                case 'maxDrawdown':
+                  valA = mA.maxDrawdown;
+                  valB = mB.maxDrawdown;
+                  break;
+                case 'volatility':
+                  valA = mA.volatility;
+                  valB = mB.volatility;
+                  break;
+                case 'sharpeRatio':
+                  valA = mA.sharpeRatio;
+                  valB = mB.sharpeRatio;
+                  break;
+                case 'sortinoRatio':
+                  valA = mA.sortinoRatio;
+                  valB = mB.sortinoRatio;
+                  break;
+                case 'calmarRatio':
+                  valA = mA.calmarRatio;
+                  valB = mB.calmarRatio;
+                  break;
+                case 'annualTurnover':
+                  valA = mA.annualTurnover;
+                  valB = mB.annualTurnover;
+                  break;
+                case 'spanishTaxSaved':
+                  valA = mA.spanishTaxSaved;
+                  valB = mB.spanishTaxSaved;
+                  break;
+                default:
+                  valA = mA.cagr;
+                  valB = mB.cagr;
+              }
 
-                    <td className="py-3 text-right font-bold text-emerald-400">
-                      +{m.cagr}%
-                    </td>
+              if (typeof valA === 'string') {
+                return metricsSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+              }
+              return metricsSortDir === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+            });
 
-                    <td className={`py-3 text-right font-bold ${
-                      m.maxDrawdown < -30 ? 'text-rose-400' : 'text-amber-400'
-                    }`}>
-                      {m.maxDrawdown}%
-                    </td>
+            const renderTh = (key: string, label: string, align: 'left' | 'right' = 'right') => {
+              const isCurrent = metricsSortKey === key;
+              return (
+                <th 
+                  onClick={() => handleMetricsSort(key)}
+                  className={`pb-3 font-semibold cursor-pointer select-none group hover:text-white transition-colors ${
+                    align === 'right' ? 'text-right' : 'text-left'
+                  }`}
+                  title={`Ordenar por ${label}`}
+                >
+                  <div className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
+                    <span>{label}</span>
+                    <span className={`transition-opacity ${isCurrent ? 'text-emerald-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                      {isCurrent ? (metricsSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                    </span>
+                  </div>
+                </th>
+              );
+            };
 
-                    <td className="py-3 text-right text-slate-300">
-                      {m.volatility}%
-                    </td>
-
-                    <td className="py-3 text-right text-teal-300 font-bold">
-                      {m.sharpeRatio.toFixed(2)}
-                    </td>
-
-                    <td className="py-3 text-right text-slate-300">
-                      {m.sortinoRatio.toFixed(2)}
-                    </td>
-
-                    <td className="py-3 text-right text-slate-300">
-                      {m.calmarRatio.toFixed(2)}
-                    </td>
-
-                    <td className="py-3 text-right text-slate-400">
-                      {m.annualTurnover} / año
-                    </td>
-
-                    <td className="py-3 text-right text-emerald-400 font-bold">
-                      {isBenchmark ? '0 €' : `+${m.spanishTaxSaved.toLocaleString('es-ES')} €`}
-                    </td>
+            return (
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 font-mono text-[11px] uppercase">
+                    {renderTh('name', 'Modelo de Dual Momentum', 'left')}
+                    {renderTh('cagr', 'CAGR (%)')}
+                    {renderTh('maxDrawdown', 'Max Drawdown')}
+                    {renderTh('volatility', 'Volatilidad')}
+                    {renderTh('sharpeRatio', 'Sharpe')}
+                    {renderTh('sortinoRatio', 'Sortino')}
+                    {renderTh('calmarRatio', 'Calmar')}
+                    {renderTh('annualTurnover', 'Traspasos/Año')}
+                    {renderTh('spanishTaxSaved', 'Ahorro Fiscal España')}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-mono">
+                  {sortedModels.map(model => {
+                    const m = DUAL_MOMENTUM_COMPARISON_METRICS[model.id];
+                    const isInspected = inspectedModelId === model.id;
+                    const isBenchmark = model.category === 'BENCHMARK';
+
+                    return (
+                      <tr 
+                        key={model.id}
+                        onClick={() => setInspectedModelId(model.id)}
+                        className={`cursor-pointer transition-colors ${
+                          isInspected 
+                            ? 'bg-emerald-500/10 text-white font-semibold' 
+                            : 'hover:bg-slate-800/50 text-slate-300'
+                        }`}
+                      >
+                        <td className="py-3 flex items-center gap-2">
+                          <span 
+                            className="w-2.5 h-2.5 rounded-full shrink-0" 
+                            style={{ backgroundColor: model.color }} 
+                          />
+                          <span className="font-sans font-medium">{model.name}</span>
+                          {model.id === 'GEM_MODERN_CASH_FILTER' && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                              Recomendado
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-3 text-right font-bold text-emerald-400">
+                          +{m.cagr}%
+                        </td>
+
+                        <td className={`py-3 text-right font-bold ${
+                          m.maxDrawdown < -30 ? 'text-rose-400' : 'text-amber-400'
+                        }`}>
+                          {m.maxDrawdown}%
+                        </td>
+
+                        <td className="py-3 text-right text-slate-300">
+                          {m.volatility}%
+                        </td>
+
+                        <td className="py-3 text-right text-teal-300 font-bold">
+                          {m.sharpeRatio.toFixed(2)}
+                        </td>
+
+                        <td className="py-3 text-right text-slate-300">
+                          {m.sortinoRatio.toFixed(2)}
+                        </td>
+
+                        <td className="py-3 text-right text-slate-300">
+                          {m.calmarRatio.toFixed(2)}
+                        </td>
+
+                        <td className="py-3 text-right text-slate-400">
+                          {m.annualTurnover} / año
+                        </td>
+
+                        <td className="py-3 text-right text-emerald-400 font-bold">
+                          {isBenchmark ? '0 €' : `+${m.spanishTaxSaved.toLocaleString('es-ES')} €`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       </div>
 

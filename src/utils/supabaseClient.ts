@@ -138,11 +138,57 @@ export const KNOWN_AUDITED_METRICS: Record<string, Partial<FundISIN>> = {
     ftReturn12M: 30.70,
     investingReturn12M: 31.10,
     return6M: 22.64,
-    return3M: -1.96,
+    return3M: 8.95,
     return1M: -0.67,
     return12Minus1M: 31.83,
     volatility1Y: 16.8,
     sharpeRatio: 1.62,
+  },
+  'IE0031786142': {
+    name: 'Vanguard Emerging Markets Stock Index EUR',
+    category: 'EMERGING_EQUITY',
+    categoryLabel: 'Renta Variable Mercados Emergentes',
+    isSafeHaven: false,
+    currentNAV: 78.60,
+    lastUpdated: '2026-09-18',
+    return12M: 31.47,
+    morningstarReturn12M: 31.47,
+    ftReturn12M: 31.02,
+    investingReturn12M: 31.50,
+    return6M: 22.64,
+    return3M: 8.95,
+    return1M: -0.67,
+    return12Minus1M: 32.36,
+    return3YAnnualized: 19.17,
+    volatility1Y: 16.8,
+    sharpeRatio: 1.65,
+    jensenAlpha: 4.80,
+    beta: 1.15,
+    sortinoRatio: 2.10,
+    maxDrawdown: -16.5,
+    morningstarUrl: 'https://www.morningstar.es/es/funds/snapshot/snapshot.aspx?id=F0GBR04U5D',
+    ftUrl: 'https://markets.ft.com/data/funds/tearsheet/summary?s=IE0031786142:EUR',
+    investingUrl: 'https://es.investing.com/funds/vanguard-emerging-markets-stock-eur',
+    sourceNotes: 'Morningstar: 31.47% (18/09) | FT: 31.02% | Investing: 31.50%',
+  },
+  'IE0031442068': {
+    name: 'Vanguard Emerging Markets Stock Index Fund EUR',
+    category: 'EMERGING_EQUITY',
+    categoryLabel: 'Renta Variable Mercados Emergentes',
+    isSafeHaven: false,
+    currentNAV: 78.60,
+    lastUpdated: '2026-09-18',
+    return12M: 31.47,
+    morningstarReturn12M: 31.47,
+    ftReturn12M: 31.02,
+    investingReturn12M: 31.50,
+    return6M: 22.64,
+    return3M: 8.95,
+    return1M: -0.67,
+    return12Minus1M: 32.36,
+    return3YAnnualized: 19.17,
+    volatility1Y: 16.8,
+    sharpeRatio: 1.65,
   },
   'LU1578889864': {
     name: 'Ninety One GSF Glb Gold A Acc EUR H',
@@ -169,14 +215,15 @@ export const KNOWN_AUDITED_METRICS: Record<string, Partial<FundISIN>> = {
     isSafeHaven: false,
     currentNAV: 245.10,
     lastUpdated: '2026-09-18',
-    return12M: 23.49,
-    morningstarReturn12M: 23.49,
-    ftReturn12M: 23.20,
-    investingReturn12M: 23.60,
-    return6M: 1.96,
-    return3M: 3.54,
-    return1M: 0.05,
-    return12Minus1M: 23.43,
+    return12M: 22.76,
+    morningstarReturn12M: 22.76,
+    ftReturn12M: 22.76,
+    investingReturn12M: 22.76,
+    return6M: 2.23,
+    return3M: 4.37,
+    return1M: -0.57,
+    return12Minus1M: 23.33,
+    return3YAnnualized: 6.28,
     volatility1Y: 13.8,
     sharpeRatio: 1.44,
   },
@@ -265,18 +312,18 @@ export function getLocalFunds(): FundISIN[] {
     }
 
     const data = localStorage.getItem(STORAGE_KEY_FUNDS);
-    if (data) {
+    if (data !== null) {
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        let fundsList = parsed;
+      if (Array.isArray(parsed)) {
+        // Return user's exact array if they have saved funds (even if empty or fewer slots)
+        if (parsed.length === 0) {
+          return [];
+        }
 
-        // Deduplicate duplicate ISINs and IDs that may have occurred from slot shifting/reloading
         const seenIds = new Set<string>();
-        const seenIsins = new Set<string>();
-
-        const sanitized: FundISIN[] = fundsList.map((f: FundISIN, index: number) => {
+        const sanitized: FundISIN[] = parsed.map((f: FundISIN, index: number) => {
           const rawIsin = (f.isin || '').trim().toUpperCase();
-          const slotNum = index + 1; // Strictly enforce sequential slot numbers 1..N
+          const slotNum = index + 1;
           
           let uniqueId = f.id;
           if (!uniqueId || seenIds.has(uniqueId)) {
@@ -284,71 +331,23 @@ export function getLocalFunds(): FundISIN[] {
           }
           seenIds.add(uniqueId);
 
-          // Deduplicate ISINs: if this exact ISIN already appeared in an earlier slot,
-          // clear this duplicate slot to prevent identical funds appearing twice
-          const isDuplicate = rawIsin.length > 0 && seenIsins.has(rawIsin);
-          if (rawIsin.length > 0 && !isDuplicate) {
-            seenIsins.add(rawIsin);
-          }
-
-          const cleanIsin = isDuplicate ? '' : rawIsin;
+          const cleanIsin = rawIsin;
           const hasIsin = cleanIsin.length > 0;
-
-          // Lookup if this fund has audited official market metrics
           const auditedData = KNOWN_AUDITED_METRICS[cleanIsin];
-          const defaultMatch = INITIAL_FUNDS.find(
-            df => (cleanIsin && df.isin.toUpperCase() === cleanIsin)
-          );
-
-          if (auditedData) {
-            return {
-              ...f,
-              ...auditedData,
-              id: uniqueId,
-              slotNumber: slotNum,
-              isin: cleanIsin,
-              name: f.name && !f.name.includes('(Vacío)') && !f.name.includes('Slot #') ? f.name : (auditedData.name || f.name),
-              isBlank: false,
-              isDisabled: Boolean(f.isDisabled),
-              sharesHeld: f.sharesHeld !== undefined ? f.sharesHeld : 0,
-              purchasePriceAvg: f.purchasePriceAvg !== undefined ? f.purchasePriceAvg : 0,
-            };
-          }
-
-          // If standard fund and missing multi-source audit data, merge canonical market figures
-          if (defaultMatch && cleanIsin === defaultMatch.isin.toUpperCase()) {
-            return {
-              ...defaultMatch,
-              ...f,
-              id: uniqueId,
-              slotNumber: slotNum,
-              isin: cleanIsin,
-              name: f.name || defaultMatch.name,
-              currentNAV: f.currentNAV || defaultMatch.currentNAV,
-              return12M: f.return12M !== undefined ? f.return12M : defaultMatch.return12M,
-              morningstarReturn12M: defaultMatch.morningstarReturn12M,
-              ftReturn12M: defaultMatch.ftReturn12M,
-              investingReturn12M: defaultMatch.investingReturn12M,
-              sourceDate: defaultMatch.sourceDate,
-              sourceNotes: defaultMatch.sourceNotes,
-              morningstarUrl: defaultMatch.morningstarUrl,
-              ftUrl: defaultMatch.ftUrl,
-              investingUrl: defaultMatch.investingUrl,
-              isBlank: !hasIsin,
-              isDisabled: Boolean(f.isDisabled),
-            };
-          }
 
           return {
             ...f,
+            ...(auditedData ? auditedData : {}),
             id: uniqueId,
             slotNumber: slotNum,
             isin: cleanIsin,
-            isBlank: !hasIsin,
+            name: f.name && !f.name.includes('(Vacío)') && !f.name.includes('Slot #')
+              ? f.name 
+              : (auditedData?.name || (hasIsin ? `Fondo ISIN ${cleanIsin}` : `Slot #${slotNum} (Vacío)`)),
+            isBlank: !hasIsin || Boolean(f.isBlank),
             isDisabled: Boolean(f.isDisabled),
-            name: !hasIsin 
-              ? (f.name?.includes('Slot #') ? f.name : `Slot #${slotNum} (Vacío)`)
-              : (f.name && !f.name.includes('(Vacío)') ? f.name : `Fondo ISIN ${cleanIsin}`),
+            sharesHeld: f.sharesHeld !== undefined ? f.sharesHeld : 0,
+            purchasePriceAvg: f.purchasePriceAvg !== undefined ? f.purchasePriceAvg : 0,
           };
         });
 

@@ -224,16 +224,16 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Recalculate / Refresh Metrics */}
+            {/* Botón Actualizar Cotizaciones Online */}
             <button
               id="refresh-metrics-btn"
               onClick={onRefreshData}
               disabled={isRefreshing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 disabled:opacity-50 transition-colors"
-              title="Actualizar ratios y métricas de mercado"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/50 text-emerald-300 hover:bg-emerald-900/40 border border-emerald-500/40 shadow-sm disabled:opacity-50 transition-all cursor-pointer"
+              title="Actualizar cotizaciones, valores liquidativos (VL) y métricas de mercado online"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-slate-300 ${isRefreshing ? 'animate-spin text-emerald-400' : ''}`} />
-              <span className="hidden sm:inline">Recalcular</span>
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="font-bold">{isRefreshing ? 'Actualizando...' : 'Actualizar Cotizaciones'}</span>
             </button>
 
             {/* Guide & Rules */}

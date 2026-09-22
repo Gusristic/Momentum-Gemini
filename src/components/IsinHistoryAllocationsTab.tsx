@@ -12,7 +12,8 @@ import {
   Download,
   Info,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowUpDown
 } from 'lucide-react';
 import { FundISIN } from '../types';
 import { generate5YearAllocationsHistory, AllocationEvent, IsinSummaryStats } from '../utils/historyAuditEngine';
@@ -31,6 +32,30 @@ export const IsinHistoryAllocationsTab: React.FC<Props> = ({ funds, hysteresisBu
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [viewMode, setViewMode] = useState<'COMPACT_TABLE' | 'ISIN_SUMMARY'>('COMPACT_TABLE');
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
+  const [timelineSortKey, setTimelineSortKey] = useState<string>('dateStr');
+  const [timelineSortDir, setTimelineSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const [isinSortKey, setIsinSortKey] = useState<string>('slotNumber');
+  const [isinSortDir, setIsinSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleTimelineSort = (key: string) => {
+    if (timelineSortKey === key) {
+      setTimelineSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setTimelineSortKey(key);
+      setTimelineSortDir(key === 'dateStr' ? 'desc' : 'asc');
+    }
+  };
+
+  const handleIsinSort = (key: string) => {
+    if (isinSortKey === key) {
+      setIsinSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setIsinSortKey(key);
+      setIsinSortDir(key === 'slotNumber' || key === 'fundName' ? 'asc' : 'desc');
+    }
+  };
 
   const { timeline, isinSummaries, modelPerformances } = useMemo(() => {
     return generate5YearAllocationsHistory(funds, hysteresisBuffer);
@@ -295,52 +320,98 @@ export const IsinHistoryAllocationsTab: React.FC<Props> = ({ funds, hysteresisBu
       )}
 
       {/* VISTA 1: TABLA ULTRA COMPACTA (1 FILA POR FECHA) */}
-      {viewMode === 'COMPACT_TABLE' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
-                  <th className="py-2.5 px-3 w-36">Fecha / Régimen</th>
-                  
-                  {/* Si está seleccionado ALL, mostramos las 4 columnas de los modelos */}
-                  {selectedModel === 'ALL' ? (
-                    <>
-                      <th className="py-2.5 px-3">
-                        <span className="text-emerald-400">12M Puro</span>
-                        <span className="block text-[9px] text-slate-500 font-normal normal-case">Antonacci 12M</span>
-                      </th>
-                      <th className="py-2.5 px-3">
-                        <span className="text-teal-400">12m - 1m</span>
-                        <span className="block text-[9px] text-slate-500 font-normal normal-case">MSCI / AQR</span>
-                      </th>
-                      <th className="py-2.5 px-3">
-                        <span className="text-amber-400">Equilibrado</span>
-                        <span className="block text-[9px] text-slate-500 font-normal normal-case">12M / 6M / 3M</span>
-                      </th>
-                      <th className="py-2.5 px-3">
-                        <span className="text-purple-400">Progresivo</span>
-                        <span className="block text-[9px] text-slate-500 font-normal normal-case">1M / 3M / 6M / 12M</span>
-                      </th>
-                    </>
-                  ) : (
-                    /* Si seleccionó 1 modelo específico, expandimos detalles en la misma fila */
-                    <>
-                      <th className="py-2.5 px-3">
-                        <span className="text-cyan-400">{modelLabels[selectedModel]?.label}</span>
-                        <span className="block text-[9px] text-slate-500 font-normal normal-case">{modelLabels[selectedModel]?.badge}</span>
-                      </th>
-                      <th className="py-2.5 px-3">Fondo Asignado</th>
-                      <th className="py-2.5 px-3">Tipo Activo</th>
-                      <th className="py-2.5 px-3">Justificación Cuantitativa</th>
-                    </>
-                  )}
-                  <th className="py-2.5 px-2 w-10 text-center">Info</th>
-                </tr>
-              </thead>
+      {viewMode === 'COMPACT_TABLE' && (() => {
+        const sortedTimeline = [...filteredTimeline].sort((a, b) => {
+          let valA: any = 0;
+          let valB: any = 0;
 
-              <tbody className="divide-y divide-slate-800/60">
-                {filteredTimeline.map((event) => {
+          switch (timelineSortKey) {
+            case 'dateStr':
+              valA = a.dateStr;
+              valB = b.dateStr;
+              break;
+            case 'classic12M':
+              valA = a.allocations.classic12M.fundName || '';
+              valB = b.allocations.classic12M.fundName || '';
+              break;
+            case 'momentum12Minus1':
+              valA = a.allocations.momentum12Minus1.fundName || '';
+              valB = b.allocations.momentum12Minus1.fundName || '';
+              break;
+            case 'equilibrado':
+              valA = a.allocations.equilibrado.fundName || '';
+              valB = b.allocations.equilibrado.fundName || '';
+              break;
+            case 'progresivo':
+              valA = a.allocations.progresivo.fundName || '';
+              valB = b.allocations.progresivo.fundName || '';
+              break;
+            default:
+              valA = a.dateStr;
+              valB = b.dateStr;
+          }
+
+          if (typeof valA === 'string') {
+            return timelineSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+          }
+          return timelineSortDir === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+        });
+
+        const renderTimelineTh = (key: string, label: string, sublabel?: string, colorClass?: string) => {
+          const isCurrent = timelineSortKey === key;
+          return (
+            <th 
+              onClick={() => handleTimelineSort(key)}
+              className="py-2.5 px-3 cursor-pointer select-none group hover:text-white transition-colors"
+              title={`Ordenar por ${label}`}
+            >
+              <div className="flex items-center gap-1.5">
+                <div>
+                  <span className={colorClass || 'text-slate-300'}>{label}</span>
+                  {sublabel && <span className="block text-[9px] text-slate-500 font-normal normal-case">{sublabel}</span>}
+                </div>
+                <span className={`transition-opacity ${isCurrent ? 'text-emerald-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                  {isCurrent ? (timelineSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                </span>
+              </div>
+            </th>
+          );
+        };
+
+        return (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
+                    {renderTimelineTh('dateStr', 'Fecha / Régimen')}
+                    
+                    {/* Si está seleccionado ALL, mostramos las 4 columnas de los modelos */}
+                    {selectedModel === 'ALL' ? (
+                      <>
+                        {renderTimelineTh('classic12M', '12M Puro', 'Antonacci 12M', 'text-emerald-400')}
+                        {renderTimelineTh('momentum12Minus1', '12m - 1m', 'MSCI / AQR', 'text-teal-400')}
+                        {renderTimelineTh('equilibrado', 'Equilibrado', '12M / 6M / 3M', 'text-amber-400')}
+                        {renderTimelineTh('progresivo', 'Progresivo', '1M / 3M / 6M / 12M', 'text-purple-400')}
+                      </>
+                    ) : (
+                      /* Si seleccionó 1 modelo específico, expandimos detalles en la misma fila */
+                      <>
+                        <th className="py-2.5 px-3">
+                          <span className="text-cyan-400">{modelLabels[selectedModel]?.label}</span>
+                          <span className="block text-[9px] text-slate-500 font-normal normal-case">{modelLabels[selectedModel]?.badge}</span>
+                        </th>
+                        <th className="py-2.5 px-3">Fondo Asignado</th>
+                        <th className="py-2.5 px-3">Tipo Activo</th>
+                        <th className="py-2.5 px-3">Justificación Cuantitativa</th>
+                      </>
+                    )}
+                    <th className="py-2.5 px-2 w-10 text-center">Info</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-800/60">
+                  {sortedTimeline.map((event) => {
                   const isBear = event.marketRegime === 'DEFENSIVE_BEAR';
                   const isTransition = event.marketRegime === 'TRANSITION';
                   const isExpanded = expandedRowId === event.id;
@@ -572,88 +643,152 @@ export const IsinHistoryAllocationsTab: React.FC<Props> = ({ funds, hysteresisBu
             </div>
           )}
         </div>
-      )}
+      ); })()}
 
       {/* VISTA 2: RESUMEN POR ISIN (CONSOLIDADO) */}
-      {viewMode === 'ISIN_SUMMARY' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-          <div className="p-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
-            <span>Fondos configurados en tus slots y su historial de asignación (últimos 5 años):</span>
-            <span className="font-mono text-cyan-300">{isinSummaries.length} fondos</span>
-          </div>
+      {viewMode === 'ISIN_SUMMARY' && (() => {
+        const sortedIsinSummaries = [...isinSummaries].sort((a, b) => {
+          let valA: any = 0;
+          let valB: any = 0;
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 text-[11px] uppercase font-semibold">
-                  <th className="py-2.5 px-3">Slot</th>
-                  <th className="py-2.5 px-3">Código ISIN</th>
-                  <th className="py-2.5 px-3">Nombre del Fondo</th>
-                  <th className="py-2.5 px-3 text-center">Meses Asignado</th>
-                  <th className="py-2.5 px-3">Primera Asignación</th>
-                  <th className="py-2.5 px-3">Última Asignación</th>
-                  <th className="py-2.5 px-3">Modelos Asignados</th>
-                  <th className="py-2.5 px-3 text-right">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {isinSummaries.map((item, index) => (
-                  <tr key={`${item.isin || 'blank'}-${item.slotNumber || index}`} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-2 px-3 font-mono text-slate-400">
-                      #{item.slotNumber}
-                    </td>
-                    <td className="py-2 px-3 font-mono font-bold text-cyan-300 whitespace-nowrap">
-                      {item.isin}
-                    </td>
-                    <td className="py-2 px-3 font-medium text-white max-w-xs truncate">
-                      {item.name}
-                    </td>
-                    <td className="py-2 px-3 text-center font-mono font-bold text-white">
-                      {item.monthsAssignedTotal > 0 ? (
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                          {item.monthsAssignedTotal} meses
-                        </span>
-                      ) : (
-                        <span className="text-slate-500">0</span>
-                      )}
-                    </td>
-                    <td className="py-2 px-3 font-mono text-slate-300 whitespace-nowrap">
-                      {item.firstAssignmentDate || '—'}
-                    </td>
-                    <td className="py-2 px-3 font-mono text-slate-300 whitespace-nowrap">
-                      {item.lastAssignmentDate || '—'}
-                    </td>
-                    <td className="py-2 px-3">
-                      <div className="flex flex-wrap gap-1">
-                        {item.assignedInModels.map((m, i) => (
-                          <span key={i} className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">
-                            {m}
-                          </span>
-                        ))}
-                        {item.assignedInModels.length === 0 && (
-                          <span className="text-slate-500 text-[10px] italic">Reserva</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-2 px-3 text-right whitespace-nowrap">
-                      {item.activeNow ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Activo Hoy
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-mono text-slate-500">
-                          Inactivo
-                        </span>
-                      )}
-                    </td>
+          switch (isinSortKey) {
+            case 'slotNumber':
+              valA = a.slotNumber;
+              valB = b.slotNumber;
+              break;
+            case 'isin':
+              valA = a.isin;
+              valB = b.isin;
+              break;
+            case 'fundName':
+              valA = a.name;
+              valB = b.name;
+              break;
+            case 'totalMonthsAllocated':
+              valA = a.monthsAssignedTotal;
+              valB = b.monthsAssignedTotal;
+              break;
+            case 'firstDate':
+              valA = a.firstAssignmentDate || '';
+              valB = b.firstAssignmentDate || '';
+              break;
+            case 'lastDate':
+              valA = a.lastAssignmentDate || '';
+              valB = b.lastAssignmentDate || '';
+              break;
+            default:
+              valA = a.slotNumber;
+              valB = b.slotNumber;
+          }
+
+          if (typeof valA === 'string') {
+            return isinSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+          }
+          return isinSortDir === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+        });
+
+        const renderIsinTh = (key: string, label: string, align: 'left' | 'right' | 'center' = 'left') => {
+          const isCurrent = isinSortKey === key;
+          return (
+            <th 
+              onClick={() => handleIsinSort(key)}
+              className={`py-2.5 px-3 cursor-pointer select-none group hover:text-white transition-colors ${
+                align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
+              }`}
+              title={`Ordenar por ${label}`}
+            >
+              <div className={`inline-flex items-center gap-1 ${
+                align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
+              }`}>
+                <span>{label}</span>
+                <span className={`transition-opacity ${isCurrent ? 'text-emerald-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                  {isCurrent ? (isinSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                </span>
+              </div>
+            </th>
+          );
+        };
+
+        return (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+            <div className="p-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+              <span>Fondos configurados en tus slots y su historial de asignación (últimos 5 años):</span>
+              <span className="font-mono text-cyan-300">{isinSummaries.length} fondos</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 text-[11px] uppercase font-semibold">
+                    {renderIsinTh('slotNumber', 'Slot')}
+                    {renderIsinTh('isin', 'Código ISIN')}
+                    {renderIsinTh('fundName', 'Nombre del Fondo')}
+                    {renderIsinTh('totalMonthsAllocated', 'Meses Asignado', 'center')}
+                    {renderIsinTh('firstDate', 'Primera Asignación')}
+                    {renderIsinTh('lastDate', 'Última Asignación')}
+                    <th className="py-2.5 px-3">Modelos Asignados</th>
+                    <th className="py-2.5 px-3 text-right">Estado</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {sortedIsinSummaries.map((item, index) => (
+                    <tr key={`${item.isin || 'blank'}-${item.slotNumber || index}`} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-2 px-3 font-mono text-slate-400">
+                        #{item.slotNumber}
+                      </td>
+                      <td className="py-2 px-3 font-mono font-bold text-cyan-300 whitespace-nowrap">
+                        {item.isin}
+                      </td>
+                      <td className="py-2 px-3 font-medium text-white max-w-xs truncate">
+                        {item.name}
+                      </td>
+                      <td className="py-2 px-3 text-center font-mono font-bold text-white">
+                        {item.monthsAssignedTotal > 0 ? (
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            {item.monthsAssignedTotal} meses
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">0</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 font-mono text-slate-300 whitespace-nowrap">
+                        {item.firstAssignmentDate || '—'}
+                      </td>
+                      <td className="py-2 px-3 font-mono text-slate-300 whitespace-nowrap">
+                        {item.lastAssignmentDate || '—'}
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="flex flex-wrap gap-1">
+                          {item.assignedInModels.map((m, i) => (
+                            <span key={i} className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">
+                              {m}
+                            </span>
+                          ))}
+                          {item.assignedInModels.length === 0 && (
+                            <span className="text-slate-500 text-[10px] italic">Reserva</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-right whitespace-nowrap">
+                        {item.activeNow ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Activo Hoy
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-slate-500">
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* FOOTER LEYENDA TÉCNICA */}
       <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl text-xs text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

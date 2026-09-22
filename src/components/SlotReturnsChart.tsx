@@ -44,6 +44,17 @@ export const SlotReturnsChart: React.FC<SlotReturnsChartProps> = ({
   const [filterCategory, setFilterCategory] = useState<FilterCategoryOption>('ACTIVE_ONLY');
   const [activeBarPeriod, setActiveBarPeriod] = useState<'ALL' | '12M' | '6M' | '3M'>('ALL');
   const [highlightFundId, setHighlightFundId] = useState<string | null>(null);
+  const [tableSortKey, setTableSortKey] = useState<string>('return12M');
+  const [tableSortDir, setTableSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const handleTableSort = (key: string) => {
+    if (tableSortKey === key) {
+      setTableSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setTableSortKey(key);
+      setTableSortDir(key === 'slotNumber' || key === 'fullName' || key === 'category' ? 'asc' : 'desc');
+    }
+  };
 
   // Process and filter funds
   const chartData = useMemo(() => {
@@ -459,89 +470,157 @@ export const SlotReturnsChart: React.FC<SlotReturnsChartProps> = ({
       </div>
 
       {/* Breakdown Table with Details */}
-      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-900/90 text-slate-400 font-mono border-b border-slate-800 uppercase text-[10px]">
-            <tr>
-              <th className="py-2.5 px-3">Slot</th>
-              <th className="py-2.5 px-3">Fondo / ISIN</th>
-              <th className="py-2.5 px-3">Categoría</th>
-              <th className="py-2.5 px-3 text-right text-emerald-400">Rent. 12M</th>
-              <th className="py-2.5 px-3 text-right text-sky-400">Rent. 6M</th>
-              <th className="py-2.5 px-3 text-right text-amber-400">Rent. 3M</th>
-              <th className="py-2.5 px-3 text-right">Rent. 1M</th>
-              <th className="py-2.5 px-3 text-center">Estado Hurdle</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60 font-mono text-slate-200">
-            {chartData.map((item) => {
-              const isWinner = item.id === selectedWinnerId;
-              return (
-                <tr
-                  key={item.id}
-                  onMouseEnter={() => setHighlightFundId(item.id)}
-                  onMouseLeave={() => setHighlightFundId(null)}
-                  className={`hover:bg-slate-900/60 transition-colors ${
-                    isWinner ? 'bg-emerald-950/20' : ''
-                  }`}
-                >
-                  <td className="py-2.5 px-3">
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                      isWinner 
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                        : 'bg-slate-800 text-slate-400'
-                    }`}>
-                      #{item.slotNumber}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 font-sans">
-                    <div className="font-semibold text-white flex items-center gap-1.5">
-                      <span className="truncate max-w-[240px]">{item.fullName}</span>
-                      {isWinner && (
-                        <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-mono border border-emerald-500/30">
-                          Líder
-                        </span>
-                      )}
-                      {item.isSafeHaven && (
-                        <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-mono border border-indigo-500/30">
-                          Refugio
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-slate-500 font-mono">{item.isin}</div>
-                  </td>
-                  <td className="py-2.5 px-3 font-sans text-slate-400 text-[11px]">
-                    {item.category}
-                  </td>
-                  <td className={`py-2.5 px-3 text-right font-bold ${item.return12M >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {item.return12M > 0 ? `+${item.return12M}` : item.return12M}%
-                  </td>
-                  <td className={`py-2.5 px-3 text-right font-semibold ${item.return6M >= 0 ? 'text-sky-400' : 'text-rose-400'}`}>
-                    {item.return6M > 0 ? `+${item.return6M}` : item.return6M}%
-                  </td>
-                  <td className={`py-2.5 px-3 text-right font-semibold ${item.return3M >= 0 ? 'text-amber-400' : 'text-rose-400'}`}>
-                    {item.return3M > 0 ? `+${item.return3M}` : item.return3M}%
-                  </td>
-                  <td className={`py-2.5 px-3 text-right ${item.return1M >= 0 ? 'text-slate-300' : 'text-rose-400'}`}>
-                    {item.return1M > 0 ? `+${item.return1M}` : item.return1M}%
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    {item.return12M >= hurdleRate ? (
-                      <span className="inline-flex items-center gap-1 text-emerald-400 text-[10px] font-sans">
-                        <CheckCircle2 className="w-3 h-3" /> Apto
-                      </span>
-                    ) : (
-                      <span className="text-rose-400 text-[10px] font-sans">
-                        Bajo €STR
-                      </span>
-                    )}
-                  </td>
+      {(() => {
+        const sortedTableData = [...chartData].sort((a, b) => {
+          let valA: any = 0;
+          let valB: any = 0;
+          switch (tableSortKey) {
+            case 'slotNumber':
+              valA = a.slotNumber;
+              valB = b.slotNumber;
+              break;
+            case 'fullName':
+              valA = a.fullName || '';
+              valB = b.fullName || '';
+              break;
+            case 'category':
+              valA = a.category || '';
+              valB = b.category || '';
+              break;
+            case 'return12M':
+              valA = a.return12M;
+              valB = b.return12M;
+              break;
+            case 'return6M':
+              valA = a.return6M;
+              valB = b.return6M;
+              break;
+            case 'return3M':
+              valA = a.return3M;
+              valB = b.return3M;
+              break;
+            case 'return1M':
+              valA = a.return1M;
+              valB = b.return1M;
+              break;
+            default:
+              valA = a.return12M;
+              valB = b.return12M;
+          }
+          if (typeof valA === 'string') {
+            return tableSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+          }
+          return tableSortDir === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+        });
+
+        const renderTh = (key: string, label: string, align: 'left' | 'right' | 'center' = 'left', colorClass: string = '') => {
+          const isCurrent = tableSortKey === key;
+          return (
+            <th 
+              onClick={() => handleTableSort(key)}
+              className={`py-2.5 px-3 cursor-pointer select-none group hover:text-white transition-colors ${
+                align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
+              } ${colorClass}`}
+              title={`Ordenar por ${label}`}
+            >
+              <div className={`inline-flex items-center gap-1 ${
+                align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+              }`}>
+                <span>{label}</span>
+                <span className={`transition-opacity ${isCurrent ? 'text-emerald-400 font-bold opacity-100' : 'opacity-30 group-hover:opacity-75'}`}>
+                  {isCurrent ? (tableSortDir === 'asc' ? '▲' : '▼') : <ArrowUpDown className="w-2.5 h-2.5" />}
+                </span>
+              </div>
+            </th>
+          );
+        };
+
+        return (
+          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-900/90 text-slate-400 font-mono border-b border-slate-800 uppercase text-[10px]">
+                <tr>
+                  {renderTh('slotNumber', 'Slot', 'left')}
+                  {renderTh('fullName', 'Fondo / ISIN', 'left')}
+                  {renderTh('category', 'Categoría', 'left')}
+                  {renderTh('return12M', 'Rent. 12M', 'right', 'text-emerald-400')}
+                  {renderTh('return6M', 'Rent. 6M', 'right', 'text-sky-400')}
+                  {renderTh('return3M', 'Rent. 3M', 'right', 'text-amber-400')}
+                  {renderTh('return1M', 'Rent. 1M', 'right')}
+                  <th className="py-2.5 px-3 text-center">Estado Hurdle</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-mono text-slate-200">
+                {sortedTableData.map((item) => {
+                  const isWinner = item.id === selectedWinnerId;
+                  return (
+                    <tr
+                      key={item.id}
+                      onMouseEnter={() => setHighlightFundId(item.id)}
+                      onMouseLeave={() => setHighlightFundId(null)}
+                      className={`hover:bg-slate-900/60 transition-colors ${
+                        isWinner ? 'bg-emerald-950/20' : ''
+                      }`}
+                    >
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                          isWinner 
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                            : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          #{item.slotNumber}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-sans">
+                        <div className="font-semibold text-white flex items-center gap-1.5">
+                          <span className="truncate max-w-[240px]">{item.fullName}</span>
+                          {isWinner && (
+                            <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-mono border border-emerald-500/30">
+                              Líder
+                            </span>
+                          )}
+                          {item.isSafeHaven && (
+                            <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-mono border border-indigo-500/30">
+                              Refugio
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono">{item.isin}</div>
+                      </td>
+                      <td className="py-2.5 px-3 font-sans text-slate-400 text-[11px]">
+                        {item.category}
+                      </td>
+                      <td className={`py-2.5 px-3 text-right font-bold ${item.return12M >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {item.return12M > 0 ? `+${item.return12M}` : item.return12M}%
+                      </td>
+                      <td className={`py-2.5 px-3 text-right font-semibold ${item.return6M >= 0 ? 'text-sky-400' : 'text-rose-400'}`}>
+                        {item.return6M > 0 ? `+${item.return6M}` : item.return6M}%
+                      </td>
+                      <td className={`py-2.5 px-3 text-right font-semibold ${item.return3M >= 0 ? 'text-amber-400' : 'text-rose-400'}`}>
+                        {item.return3M > 0 ? `+${item.return3M}` : item.return3M}%
+                      </td>
+                      <td className={`py-2.5 px-3 text-right ${item.return1M >= 0 ? 'text-slate-300' : 'text-rose-400'}`}>
+                        {item.return1M > 0 ? `+${item.return1M}` : item.return1M}%
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {item.return12M >= hurdleRate ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-400 text-[10px] font-sans">
+                            <CheckCircle2 className="w-3 h-3" /> Apto
+                          </span>
+                        ) : (
+                          <span className="text-rose-400 text-[10px] font-sans">
+                            Bajo €STR
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
 
     </div>
   );
