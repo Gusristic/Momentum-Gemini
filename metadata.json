@@ -1,0 +1,6 @@
+{
+  "name": "Antonacci Dual Momentum España",
+  "description": "Plataforma cuantitativa basada en Dual Momentum de Gary Antonacci adaptada a fondos de inversión indexados y activos, con 15 slots ISIN, 4 modelos de momentum (incluido 12m-1m institucional), matriz de correlación D3, backtests dinámicos sobre tus fondos y ratios técnicos avanzados (Sharpe, Jensen's Alpha, Sortino y Drawdown).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
