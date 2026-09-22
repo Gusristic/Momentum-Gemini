@@ -30,9 +30,23 @@ interface HeaderProps {
   lastUpdated: string;
 }
 
-const formatDateDisplay = (dStr: string) => {
-  if (!dStr) return '21 Sep 2026';
+export const formatDateDisplay = (dStr: string) => {
+  if (!dStr) return '22 Sep 2026';
   try {
+    const d = new Date(dStr);
+    if (!isNaN(d.getTime())) {
+      const day = d.getDate();
+      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const month = months[d.getMonth()] || 'Sep';
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      const secs = String(d.getSeconds()).padStart(2, '0');
+      if (dStr.includes('T') || dStr.includes(':')) {
+        return `${day} ${month} ${year}, ${hours}:${mins}:${secs}`;
+      }
+      return `${day} ${month} ${year}`;
+    }
     const parts = dStr.split('-');
     if (parts.length === 3) {
       const year = parts[0];

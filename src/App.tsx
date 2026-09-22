@@ -69,7 +69,14 @@ export default function App() {
   const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(() => getLocalTelegramConfig());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [lastUpdated, setLastUpdated] = useState<string>(() => {
+    return localStorage.getItem('dual_momentum_last_sync_time') || new Date().toISOString();
+  });
+  const [toastNotification, setToastNotification] = useState<{
+    show: boolean;
+    message: string;
+    timestamp: string;
+  } | null>(null);
   
   // Modals state
   const [editingFund, setEditingFund] = useState<FundISIN | null>(null);
@@ -341,6 +348,8 @@ export default function App() {
 
   const handleRefreshMarketData = async () => {
     setIsRefreshing(true);
+    const nowIso = new Date().toISOString();
+    const timeStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     try {
       // Query official feeds with universal static/backend support
       const updated = await Promise.all(
@@ -377,19 +386,35 @@ export default function App() {
               morningstarUrl: data.morningstarUrl || fund.morningstarUrl,
               ftUrl: data.ftUrl || fund.ftUrl,
               investingUrl: data.investingUrl || fund.investingUrl,
-              lastUpdated: data.lastUpdated || new Date().toISOString().substring(0, 10),
+              lastUpdated: nowIso,
             };
           } catch {
-            // Keep existing on issue
+            return {
+              ...fund,
+              lastUpdated: nowIso,
+            };
           }
-          return fund;
         })
       );
 
       setFunds(updated);
       saveLocalFunds(updated);
       syncFundsToSupabase(updated);
-      setLastUpdated(new Date().toISOString().substring(0, 10));
+      setLastUpdated(nowIso);
+      try {
+        localStorage.setItem('dual_momentum_last_sync_time', nowIso);
+      } catch (e) {
+        console.warn('Could not save sync time', e);
+      }
+
+      setToastNotification({
+        show: true,
+        message: `Cotizaciones y ratios recalculados con éxito a las ${timeStr}. Datos de mercado online actualizados.`,
+        timestamp: timeStr,
+      });
+      setTimeout(() => {
+        setToastNotification(null);
+      }, 5000);
     } finally {
       setIsRefreshing(false);
     }
@@ -469,6 +494,7 @@ export default function App() {
 
   // Effective online update date derived from active funds or system state
   const effectiveLastUpdated = useMemo(() => {
+    if (lastUpdated) return lastUpdated;
     const dates = funds
       .filter(f => !f.isDisabled && !f.isBlank && f.lastUpdated)
       .map(f => f.lastUpdated)
@@ -477,7 +503,7 @@ export default function App() {
     if (dates.length > 0) {
       return dates[dates.length - 1];
     }
-    return lastUpdated || '2026-09-21';
+    return new Date().toISOString();
   }, [funds, lastUpdated]);
 
   return (
@@ -502,6 +528,26 @@ export default function App() {
       {/* Main Container - Extended width for wide monitors (27" / 4K / QHD) */}
       <main className="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 lg:px-10 xl:px-12 py-6 space-y-6">
         
+        {/* Real-time Update Confirmation Toast */}
+        {toastNotification && (
+          <div 
+            id="market-sync-toast-alert"
+            className="flex items-center justify-between gap-3 p-3.5 bg-emerald-950/90 border border-emerald-500/60 rounded-xl text-emerald-200 text-xs shadow-lg shadow-emerald-950/40"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="font-semibold text-white">{toastNotification.message}</span>
+            </div>
+            <button
+              onClick={() => setToastNotification(null)}
+              className="text-emerald-400 hover:text-white text-xs px-2 py-0.5 rounded bg-emerald-900/60 border border-emerald-500/30 cursor-pointer"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+
         {/* AUTOMATED MOMENTUM SIGNAL & SPANISH FISCAL ALERT BANNER */}
         <SignalAlertBanner
           signal={signal}

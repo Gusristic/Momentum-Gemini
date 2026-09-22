@@ -17,6 +17,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { DualMomentumSignal, FundISIN } from '../types';
+import { formatDateDisplay } from './Header';
 
 interface SignalAlertBannerProps {
   signal: DualMomentumSignal;
@@ -105,11 +106,11 @@ export const SignalAlertBanner: React.FC<SignalAlertBannerProps> = ({
           <div 
             id="banner-online-date-badge"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300"
-            title={`Fecha de última actualización efectiva de datos online: ${lastUpdated}`}
+            title={`Fecha y hora de última actualización de datos online: ${lastUpdated}`}
           >
             <Calendar className="w-3.5 h-3.5 text-emerald-400" />
             <span className="text-slate-400">Datos online:</span>
-            <strong className="text-emerald-400 font-bold">{lastUpdated}</strong>
+            <strong className="text-emerald-400 font-bold">{formatDateDisplay(lastUpdated)}</strong>
           </div>
 
           {onOpenTelegramModal && (
