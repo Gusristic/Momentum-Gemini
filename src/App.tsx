@@ -14,7 +14,8 @@ import {
   History,
   Calendar,
   Grid,
-  BarChart3
+  BarChart3,
+  Target
 } from 'lucide-react';
 import { FundISIN } from './types';
 import { INITIAL_FUNDS } from './data/defaultFunds';
@@ -39,6 +40,7 @@ import { TechnicalRatiosView } from './components/TechnicalRatiosView';
 import { PerformanceCharts } from './components/PerformanceCharts';
 import { SlotReturnsChart } from './components/SlotReturnsChart';
 import { CorrelationMatrixView } from './components/CorrelationMatrixView';
+import { ModelAllocationSummaryTab } from './components/ModelAllocationSummaryTab';
 import { EditFundModal } from './components/EditFundModal';
 import { SupabaseModal } from './components/SupabaseModal';
 import { MethodologyModal } from './components/MethodologyModal';
@@ -96,7 +98,7 @@ export default function App() {
 
   // Active view tab in main dashboard
   const [dashboardTab, setDashboardTab] = useState<
-    'OVERVIEW' | 'SLOT_RETURNS' | 'DUAL_MOMENTUM_MODELS' | 'ISIN_HISTORY_5Y' | 'CORRELATION_MATRIX' | 'ISIN_SLOTS' | 'TECHNICAL_RATIOS' | 'PERFORMANCE'
+    'OVERVIEW' | 'MODEL_ALLOCATIONS_SUMMARY' | 'SLOT_RETURNS' | 'DUAL_MOMENTUM_MODELS' | 'ISIN_HISTORY_5Y' | 'CORRELATION_MATRIX' | 'ISIN_SLOTS' | 'TECHNICAL_RATIOS' | 'PERFORMANCE'
   >('OVERVIEW');
 
   // Check Supabase connection on load
@@ -579,6 +581,19 @@ export default function App() {
             </button>
 
             <button
+              id="tab-model-allocations-summary"
+              onClick={() => setDashboardTab('MODEL_ALLOCATIONS_SUMMARY')}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 whitespace-nowrap cursor-pointer ${
+                dashboardTab === 'MODEL_ALLOCATIONS_SUMMARY'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-900 bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-bold">Asignación por Modelo</span>
+            </button>
+
+            <button
               id="tab-slot-returns"
               onClick={() => setDashboardTab('SLOT_RETURNS')}
               className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 whitespace-nowrap cursor-pointer ${
@@ -836,6 +851,15 @@ export default function App() {
               selectedWinnerId={signal.currentSelectedFund.id}
             />
           </div>
+        )}
+
+        {dashboardTab === 'MODEL_ALLOCATIONS_SUMMARY' && (
+          <ModelAllocationSummaryTab
+            funds={funds}
+            activeFundId={activeFundId}
+            onSelectActiveFund={handleSelectActiveFund}
+            hysteresisBuffer={hysteresisBuffer}
+          />
         )}
 
         {dashboardTab === 'SLOT_RETURNS' && (
